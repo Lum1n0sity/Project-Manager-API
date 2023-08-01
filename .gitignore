@@ -1,0 +1,28 @@
+# Visual Studio / Visual Studio Code
+.vs/
+.vscode/
+
+# Build artifacts
+bin/
+obj/
+
+# Packages
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+
+# Environment-specific files
+appsettings*.json
+
+# Logs and debug files
+*.log
+*.log.*
+
+# Sensitive data
+appsettings.Production.json
+appsettings.Staging.json
+
+# IDE-specific files
+*.sln.docstates
