@@ -14,7 +14,7 @@ app.post('/api/login', (req, res) => {
 
     let exists = false;
 
-    connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (error) => {
+    connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (error, results) => {
         if (error)
         {
             console.error('Error executing MySQL query (/login): ', error);
@@ -22,8 +22,16 @@ app.post('/api/login', (req, res) => {
         }
         else 
         {
-            exists = true;
-            res.json({ allowLogin: exists });
+            if (results.length > 0)
+            {
+                exists = true;
+                res.json({ allowLogin: exists });
+            }
+            else
+            {
+                exists = false;
+                res.json({ allowLogin: exists });
+            }            
         }
     });
 });
@@ -65,7 +73,7 @@ app.post('/api/create_account', (req, res) => {
 
     if (!usernameexists && !passwordexists)
     {
-        connection.query('INSERT INTO users (username, password, email) VALUES (?, ?, ?)' [username, password, email], (error) => {
+        connection.query('INSERT INTO users (username, password, email) VALUES (?, ?, ?)' [username, password, email], (error, result) => {
             if (error)
             {
                 console.error('Error inserting userdata into database: ' + error);
