@@ -9,12 +9,15 @@ app.use(cors());
 app.use(express.json());
 
 app.post('/api/login', (req, res) => {
-    const username = req.query.username;
-    const password = req.query.password;
+    const username_req = req.body.username;
+    const password_req = req.body.password;
+
+    console.log('sent username', username_req);
+    console.log('sent password', password_req); 
 
     let exists = false;
 
-    connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (error, results) => {
+    connection.query('SELECT * FROM users WHERE username = ? AND password = ?', [username_req, password_req], (error, result) => {
         if (error)
         {
             console.error('Error executing MySQL query (/login): ', error);
@@ -22,16 +25,18 @@ app.post('/api/login', (req, res) => {
         }
         else 
         {
-            if (results.length > 0)
+            if (result.length === 0)
             {
+                return res.status(401).json({ error: 'Invalid credentials' });
+            }
+
+            const userdData = result[0];
+            if (password_req === userdData.password && username_req === userdData.username)
+            {  
+                console.log('login');
                 exists = true;
                 res.json({ allowLogin: exists });
             }
-            else
-            {
-                exists = false;
-                res.json({ allowLogin: exists });
-            }            
         }
     });
 });
