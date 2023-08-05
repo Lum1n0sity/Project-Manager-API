@@ -13,10 +13,12 @@ app.post('/api/login', (req, res) => {
     const username_req = req.body.username;
     const password_req = req.body.password;
 
+    let username_correct = false;
+    console.log(username_req);
 
     let exists = false;
 
-    connection.query('SELECT username, password, email FROM users WHERE username = ? AND password = ?', [username_req, password_req], (error, result) => {
+    connection.query('SELECT username, password, email FROM users WHERE username = ?', [username_req], (error, result) => {
         if (error)
         {
             console.error('Error executing MySQL query (/login): ', error);
@@ -24,34 +26,43 @@ app.post('/api/login', (req, res) => {
         }
         else 
         {
+            const query_data = result[0];
+
+            if (query_data.username === username_req)
+            {
+                username_correct = true;
+            }
+            else
+            {
+                username_correct = false;
+            }
+
             if (result.length === 0)
             {
                 return res.status(401).json({ error: 'Invalid credentials' });
             }
             else
             {
-                const storedHash = result[0].password;
-
-                bcrypt.compare(password_req, storedHash, (err, result) => {
-                    if (err)
+                bcrypt.compare(password_req, query_data.password, function(err, result) {
+                  if (err) {
+                    console.error(err);
+                    return;
+                  }
+                  console.log(result);
+                  if (result) 
+                  {
+                    if (username_correct)
                     {
-                        console.error('Error comparing passwords:', err);
-                        res.status(500).json({ error: 'Error comparing passwords' });
+                      exists = true;
+                      res.json({ allowLogin: exists, email: query_data.email });
                     }
-                    else
-                    {
-                        if (result) 
-                        {
-                            exists = true;
-                            const selectedEmail = userdData.email;
-                            res.json({ allowLogin: exists, email: selectedEmail });
-                        }
-                        else
-                        {
-                            res.status(401).json({ error: 'Invalid credentials' });
-                        }
-                    }
-                });
+                  } 
+                  else 
+                  {
+                    exists = false;
+                    res.status(401).json({ error: 'Invalid credentials' });
+                  }
+                });               
             }
         }
     });
@@ -66,6 +77,8 @@ app.post('/api/create_account', (req, res) => {
     let passwordexists = false;
     let accountcreated = false;
 
+    const saltRounds = 12;
+
     connection.query('SELECT * FROM users WHERE username = ?', [username], (error, result) => {
         if (error) 
         {
@@ -79,7 +92,7 @@ app.post('/api/create_account', (req, res) => {
                 usernameexists = false;
                 console.log('username doesnt exist');
 
-                connection.query('SELECT * FROM users WHERE password = ?', [password], (error, result) => {
+                connection.query('SELECT * FROM users', (error, result) => {
                     if (error) 
                     {
                         console.error('Error executing MySQL query (/create_account(password query)): ' + error);
@@ -87,45 +100,48 @@ app.post('/api/create_account', (req, res) => {
                     } 
                     else 
                     {
-                        if (result.length === 0) 
-                        {
+                        const query_data_cr = result[0];
+
+                        bcrypt.compare(password, query_data_cr.password, function(err, result) {
+                          if (error)
+                          {
+                            console.log(err);
+                            return;
+                          }
+                          if (!result)
+                          {
                             passwordexists = false;
-                            console.log('password doesnt exist');
 
-                            if (!usernameexists && !passwordexists) 
-                            {
-                                const saltRounds = 12;
+                            bcrypt.hash(password, saltRounds, (err, hash) => {
+                              if (err) 
+                              {
+                                console.error('Error hashing password:', err);
+                              } else {
+                                
 
-                                bcrypt.hash(password, saltRounds, (err, hash) => {
-                                    if (err) 
-                                    {
-                                      console.error('Error hashing password:', err);
-                                    } else {
-                                      
-
-                                      connection.query('INSERT INTO users (username, password, email) VALUES (?, ?, ?)', [username, hash, email], (error, result) => {
-                                        if (error) 
-                                        {
-                                            console.error('Error inserting userdata into database: ' + error);
-                                            res.status(500).json({ error: 'Error inserting userdata' });
-                                        } 
-                                        else 
-                                        {
-                                            accountcreated = true;
-                                            res.json({ accountCreated: accountcreated });
-                                        }
-                                    });
-                                    }
+                                connection.query('INSERT INTO users (username, password, email) VALUES (?, ?, ?)', [username, hash, email], (error, result) => {
+                                  if (error) 
+                                  {
+                                      console.error('Error inserting userdata into database: ' + error);
+                                      res.status(500).json({ error: 'Error inserting userdata' });
+                                  } 
+                                  else 
+                                  {
+                                      accountcreated = true;
+                                      res.json({ accountCreated: accountcreated });
+                                  }
                                 });
-                                
-
-                                
-                            }
-                        } else {
+                              }
+                            });
+                          }
+                          else
+                          {
+                            console.log('Create Account Compare: ', result);
+                            console.log('Password Already Exists!');
                             passwordexists = true;
-                            console.log('password exists');
                             res.status(401).json({ error: 'Password Already Exists!' });
-                        }
+                          }
+                        }); 
                     }
                 });
             } else {
