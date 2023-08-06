@@ -229,13 +229,13 @@ app.post('/api/forgot-password', (req, res) => {
         const transporter = nodemailer.createTransport({
           service: 'outlook',
           auth: {
-            user: 'raphael221@outlook.de',
-            pass: 'Mama221gvOma1321',
+            user: 'test@example.com',
+            pass: 'testpassword',
           },
         });
 
         const mailOptions = {
-          from: 'raphael221@outlook.de',
+          from: 'test@example.com',
           to: email,
           subject: 'Password Reset Request',
           text: 'Click the link below to reset your password: http://127.0.0.1:3000/api/reset-password?token=${resetToken}',
