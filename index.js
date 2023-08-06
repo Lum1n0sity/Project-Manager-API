@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const connection = require('./db');
 const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = 3000;
@@ -175,6 +177,84 @@ app.delete('/api/delete_user', (req, res) => {
             }
           });
         }
+      }
+    });
+});
+
+function updateUserResetToken(email, resetToken) {
+  return new Promise((resolve, reject) => {
+    const updateQuery = 'UPDATE users SET resetToken = ? WHERE email = ?';
+
+    connection.query(updateQuery, [resetToken, email], (error, result) => {
+      if (error) 
+      {
+        console.error('Error updating reset token for user: ', error);
+        reject(new Error('Failed to update reset token'));
+      } 
+      else if (result.affectedRows === 0) 
+      {
+        reject(new Error('User not found'));
+      } 
+      else 
+      {
+        resolve();
+      }
+    });
+  });
+}
+
+
+app.post('/api/forgot-password', (req, res) => {
+  const username_reset = req.body.username;
+
+  connection.query('SELECT * FROM users WHERE username = ?', [username_reset],  (error, result) => {
+    if (error)
+    {
+      console.error('Error executin MySQL query (/reset-password - POST): ' + error);
+      res.status(500).json({ error: 'Error executing MySQL query' });
+    }
+    else
+    {
+      if (result.length === 0)
+      {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const email = result[0].email;
+
+      const resetToken = uuidv4();
+
+    updateUserResetToken(email, resetToken)
+      .then(() => {
+        const transporter = nodemailer.createTransport({
+          service: 'outlook',
+          auth: {
+            user: 'raphael221@outlook.de',
+            pass: 'Mama221gvOma1321',
+          },
+        });
+
+        const mailOptions = {
+          from: 'raphael221@outlook.de',
+          to: email,
+          subject: 'Password Reset Request',
+          text: 'Click the link below to reset your password: http://127.0.0.1:3000/api/reset-password?token=${resetToken}',
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) 
+          {
+            console.error('Error sending email: ', error);
+            res.status(500).json({ error: 'Failed to send email' });
+          } 
+          else 
+          {
+            console.log('Email sent: ', info.response);
+            res.json({ message: 'Password reset link sent to your email address' });
+          }
+        });
+        
+      });
       }
     });
 });
