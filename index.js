@@ -28,15 +28,6 @@ app.post('/api/login', (req, res) => {
         {
             const query_data = result[0];
 
-            if (query_data.username === username_req)
-            {
-                username_correct = true;
-            }
-            else
-            {
-                username_correct = false;
-            }
-
             if (result.length === 0)
             {
                 return res.status(401).json({ error: 'Invalid credentials' });
@@ -51,11 +42,8 @@ app.post('/api/login', (req, res) => {
                   console.log(result);
                   if (result) 
                   {
-                    if (username_correct)
-                    {
-                      exists = true;
-                      res.json({ allowLogin: exists, email: query_data.email });
-                    }
+                    exists = true;
+                    res.json({ allowLogin: exists, email: query_data.email });
                   } 
                   else 
                   {
@@ -156,6 +144,8 @@ app.post('/api/create_account', (req, res) => {
 app.delete('/api/delete_user', (req, res) => {
     const username = req.body.username;
 
+    console.log(username);
+
     connection.query('SELECT * FROM users WHERE username = ?', [username], (error, result) => {
       if (error) {
         console.error('Error executing MySQL query (/delete_account - SELECT): ' + error);
@@ -163,6 +153,8 @@ app.delete('/api/delete_user', (req, res) => {
       } 
       else 
       {
+        console.log('Delete Result: ', result);
+
         if (result.length === 0) 
         {
           res.json({ success: false, message: 'Account not found' });
