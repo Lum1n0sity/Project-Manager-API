@@ -235,15 +235,15 @@ app.post('/api/forgot-password', (req, res) => {
             const transporter = nodemailer.createTransport({
               service: 'outlook',
               auth: {
-                user: 'raphael221@outlook.de',
-                pass: 'Mama221gvOma1321',
+                user: 'email@example.com',
+                pass: 'examplepasword',
               },
             });
 
             const emailContent = emailTemplate.replace('RESET_TOKEN_HERE', resetToken);
 
             const mailOptions = {
-              from: 'raphael221@outlook.de',
+              from: 'email@example.com',
               to: email,
               subject: 'Password Reset Request - Project Manager',
               html: emailContent,
