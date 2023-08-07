@@ -4,6 +4,9 @@ const connection = require('./db');
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const { app: electronApp, BrowserWindow, protocol } = require('electron');
+const path = require('path');
 
 const app = express();
 const PORT = 3000;
@@ -203,60 +206,71 @@ function updateUserResetToken(email, resetToken) {
   });
 }
 
-
 app.post('/api/forgot-password', (req, res) => {
   const username_reset = req.body.username;
 
-  connection.query('SELECT * FROM users WHERE username = ?', [username_reset],  (error, result) => {
-    if (error)
-    {
-      console.error('Error executin MySQL query (/reset-password - POST): ' + error);
-      res.status(500).json({ error: 'Error executing MySQL query' });
-    }
-    else
-    {
-      if (result.length === 0)
+  const emailTemplate = fs.readFileSync('emailTemplate.html', 'utf-8');
+
+  connection.query(
+    'SELECT * FROM users WHERE username = ?',
+    [username_reset],
+    (error, result) => {
+      if (error) 
       {
-        return res.status(404).json({ error: 'User not found' });
+        console.error('Error executing MySQL query (/reset-password - POST): ', error);
+        res.status(500).json({ error: 'Error executing MySQL query' });
       }
-      
-      const email = result[0].email;
+      else 
+      {
+        if (result.length === 0) 
+        {
+          return res.status(404).json({ error: 'User not found' });
+        }
 
-      const resetToken = uuidv4();
+        const email = result[0].email;
+        const resetToken = uuidv4();
 
-    updateUserResetToken(email, resetToken)
-      .then(() => {
-        const transporter = nodemailer.createTransport({
-          service: 'outlook',
-          auth: {
-            user: 'raphael221@outlook.de',
-            pass: 'Mama221gvOma1321',
-          },
-        });
+        updateUserResetToken(email, resetToken)
+          .then(() => {
+            const transporter = nodemailer.createTransport({
+              service: 'outlook',
+              auth: {
+                user: 'raphael221@outlook.de',
+                pass: 'Mama221gvOma1321',
+              },
+            });
 
-        const mailOptions = {
-          from: 'raphael221@outlook.de',
-          to: email,
-          subject: 'Password Reset Request',
-          text: 'Click the link below to reset your password: http://127.0.0.1:3000/api/reset-password?token=${resetToken}',
-        };
+            const emailContent = emailTemplate.replace('RESET_TOKEN_HERE', resetToken);
 
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) 
-          {
-            console.error('Error sending email: ', error);
-            res.status(500).json({ error: 'Failed to send email' });
-          } 
-          else 
-          {
-            console.log('Email sent: ', info.response);
-            res.json({ message: 'Password reset link sent to your email address' });
-          }
-        });
-        
-      });
+            const mailOptions = {
+              from: 'raphael221@outlook.de',
+              to: email,
+              subject: 'Password Reset Request - Project Manager',
+              html: emailContent,
+            };
+
+            transporter.sendMail(mailOptions, (error, info) => {
+              if (error) 
+              {
+                console.error('Error sending email: ', error);
+                res.status(500).json({ error: 'Failed to send email' });
+              } 
+              else 
+              {
+                console.log('Email sent: ', info.response);
+                res.json({ message: 'Password reset link sent to your email address' });
+
+                electronApp.mainWindow.webContents.send('open-password-reset-window', resetToken);
+              }
+            });
+          })
+          .catch((error) => {
+            console.error('Error updating reset token in the database: ', error);
+            res.status(500).json({ error: 'Failed to generate reset token' });
+          });
       }
-    });
+    }
+  );
 });
 
 app.listen(PORT, () => {
